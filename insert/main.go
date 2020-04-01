@@ -19,8 +19,8 @@ type Movie struct {
 }
 
 func insert(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	var movies Movie
-	err := json.Unmarshal([]byte(request.Body), &movies)
+	var movie Movie
+	err := json.Unmarshal([]byte(request.Body), &movie)
 	if err != nil {
 		fmt.Println(err)
 		return events.APIGatewayProxyResponse{
@@ -41,10 +41,10 @@ func insert(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespon
 		TableName: aws.String(os.Getenv("TABLE_NAME")),
 		Item: map[string]dynamodb.AttributeValue{
 			"ID": dynamodb.AttributeValue{
-				S: aws.String(movies.ID),
+				S: aws.String(movie.ID),
 			},
 			"Name": dynamodb.AttributeValue{
-				S: aws.String(movies.URL),
+				S: aws.String(movie.URL),
 			},
 		},
 	})
