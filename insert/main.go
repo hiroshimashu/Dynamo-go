@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 )
 
+// Movie entity
 type Movie struct {
 	ID  string `json:"id"`
 	URL string `json:"url"`
@@ -22,11 +23,11 @@ func insert(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespon
 	var movie Movie
 	err := json.Unmarshal([]byte(request.Body), &movie)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Print(err)
 		return events.APIGatewayProxyResponse{
 			StatusCode: 400,
 			Body:       "Invalid payload",
-		}, nil
+		}, err
 	}
 
 	cfg, err := external.LoadDefaultAWSConfig()
@@ -43,7 +44,7 @@ func insert(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespon
 			"ID": dynamodb.AttributeValue{
 				S: aws.String(movie.ID),
 			},
-			"Name": dynamodb.AttributeValue{
+			"URL": dynamodb.AttributeValue{
 				S: aws.String(movie.URL),
 			},
 		},
