@@ -1,12 +1,28 @@
 package main
 
 import (
+	"encoding/base64"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/aws/aws-lambda-go/events"
 )
+
+func encodeImageToBase64() string {
+
+	file, _ := os.Open("maru.png")
+	defer file.Close()
+
+	fi, _ := file.Stat() //FileInfo interface
+	size := fi.Size()    //ファイルサイズ
+
+	data := make([]byte, size)
+	file.Read(data)
+
+	return base64.StdEncoding.EncodeToString(data)
+}
 
 func TestInsert_ValidPayload(t *testing.T) {
 	input := events.APIGatewayProxyRequest{

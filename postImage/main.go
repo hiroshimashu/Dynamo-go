@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"os"
 
@@ -15,23 +14,33 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3/s3manager"
 )
 
-// payload format
+// Image Payload format
 type Image struct {
-	fileName      string `json:"filename"`
-	string64      string `json:"base64Image"`
-	fileExtension string `json:"extension"`
+	FileName      string `json:"filename"`
+	String64      string `json:"base64Image"`
+	FileExtension string `json:"extension"`
 }
 
 func handleRequest(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	var image Image
-	err := json.Unmarshal([]byte(request.Body), &image)
-	if err != nil {
+	// var image Image
+	fmt.Println(request.Body)
+	/*
+		err := json.Unmarshal([]byte(request.Body), &image)
+		if typeErr, ok := err.(*json.UnmarshalTypeError); ok {
+			fmt.Printf("%#v", typeErr)
+		}
+	*/
+	body, decodeError := decodeBase64(request.Body, "png")
+	fmt.Println(body)
+	if decodeError != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 400,
 			Body:       "Invalid payload",
-		}, err
+		}, decodeError
 	}
-	result, uploadError := uploadS3(image.string64, image.fileExtension, image.fileExtension)
+
+	result, uploadError := uploadS3(body)
+	fmt.Println(result)
 	if uploadError != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 400,
@@ -47,8 +56,7 @@ func handleRequest(request events.APIGatewayProxyRequest) (events.APIGatewayProx
 	}, nil
 }
 
-func uploadS3(imageBase64 string, fileExtension string, fileName string) (*s3manager.UploadOutput, error) {
-	fmt.Println(imageBase64, fileExtension, fileName)
+func uploadS3(imageBody []byte) (*s3manager.UploadOutput, error) {
 	cfg, err := external.LoadDefaultAWSConfig()
 	if err != nil {
 		return nil, err
@@ -56,18 +64,11 @@ func uploadS3(imageBase64 string, fileExtension string, fileName string) (*s3man
 	// Create S3 service client with a specific Region.
 	svc := s3.New(cfg)
 	uploader := s3manager.NewUploaderWithClient(svc)
-	data, decodeError := decodeBase64(imageBase64, fileExtension)
-	if decodeError != nil {
-		return nil, decodeError
-	}
-	wb := new(bytes.Buffer)
-	wb.Write(data)
-
 	res, err := uploader.Upload(&s3manager.UploadInput{
 		Bucket:      aws.String("miraikan"),
-		Key:         aws.String(os.Getenv("URL") + fileName + "." + fileExtension),
-		Body:        wb,
-		ContentType: aws.String("image/" + fileExtension),
+		Key:         aws.String(os.Getenv("URL") + "maru" + ".png"),
+		Body:        bytes.NewReader(imageBody),
+		ContentType: aws.String("image/png"),
 	})
 
 	return res, nil
