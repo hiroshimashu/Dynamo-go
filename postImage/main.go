@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/s3manager"
+	"github.com/google/uuid"
 )
 
 // Image Payload format
@@ -22,14 +23,6 @@ type Image struct {
 }
 
 func handleRequest(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	// var image Image
-	fmt.Println(request.Body)
-	/*
-		err := json.Unmarshal([]byte(request.Body), &image)
-		if typeErr, ok := err.(*json.UnmarshalTypeError); ok {
-			fmt.Printf("%#v", typeErr)
-		}
-	*/
 	body, decodeError := decodeBase64(request.Body, "png")
 	fmt.Println(body)
 	if decodeError != nil {
@@ -40,7 +33,6 @@ func handleRequest(request events.APIGatewayProxyRequest) (events.APIGatewayProx
 	}
 
 	result, uploadError := uploadS3(body)
-	fmt.Println(result)
 	if uploadError != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 400,
@@ -61,17 +53,33 @@ func uploadS3(imageBody []byte) (*s3manager.UploadOutput, error) {
 	if err != nil {
 		return nil, err
 	}
+	randID, err := createuuid()
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
 	// Create S3 service client with a specific Region.
 	svc := s3.New(cfg)
 	uploader := s3manager.NewUploaderWithClient(svc)
 	res, err := uploader.Upload(&s3manager.UploadInput{
 		Bucket:      aws.String("miraikan"),
-		Key:         aws.String(os.Getenv("URL") + "maru" + ".png"),
+		Key:         aws.String(os.Getenv("URL") + "last/" + randID + ".png"),
 		Body:        bytes.NewReader(imageBody),
 		ContentType: aws.String("image/png"),
+		ACL:         "public-read",
 	})
 
 	return res, nil
+}
+
+func createuuid() (string, error) {
+	u, err := uuid.NewRandom()
+	if err != nil {
+		fmt.Println(err)
+		return "", err
+	}
+	uu := u.String()
+	return uu, nil
 }
 
 func decodeBase64(imageBase64 string, fileExtension string) ([]byte, error) {
