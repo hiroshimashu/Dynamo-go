@@ -2,66 +2,56 @@ package main
 
 import (
 	"encoding/json"
-	"net/http"
-	"os"
+	"fmt"
+	"log"
+	"time"
 
-	"github.com/aws/aws-lambda-go/events"
-	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 )
 
-type Movie struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+type UserPost struct {
+	ID        string
+	URL       string
+	CreatedAt time.Time
+	State     string
 }
 
-func insert(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	var movie Movie
-	err := json.Unmarshal([]byte(request.Body), &movie)
-	if err != nil {
-		return events.APIGatewayProxyResponse{
-			StatusCode: 400,
-			Body:       "Invalid payload",
-		}, nil
-	}
-
+func config() {
 	cfg, err := external.LoadDefaultAWSConfig()
 	if err != nil {
-		return events.APIGatewayProxyResponse{
-			StatusCode: http.StatusInternalServerError,
-			Body:       "Error while retrieving AWS credentials",
-		}, nil
-	}
-	svc := dynamodb.New(cfg)
-	req := svc.PutItemRequest(&dynamodb.PutItemInput{
-		TableName: aws.String(os.Getenv("TABLE_NAME")),
-		Item: map[string]dynamodb.AttributeValue{
-			"ID": dynamodb.AttributeValue{
-				S: aws.String(movie.ID),
-			},
-			"Name": dynamodb.AttributeValue{
-				S: aws.String(movie.Name),
-			},
-		},
-	})
-	_, err = req.Send(req.Content)
-	if err != nil {
-		return events.APIGatewayProxyResponse{
-			StatusCode: http.StatusInternalServerError,
-			Body:       "Error while inserting movie to DynamoDB",
-		}, nil
+		log.Fatal(err)
 	}
 
-	return events.APIGatewayProxyResponse{
-		StatusCode: 200,
-		Headers: map[string]string{
-			"Content-Type": "application/json",
-		},
-	}, nil
+	svc := dynamodb.New(cfg)
+	params := &dynamodb.ScanInput{
+		TableName: aws.String("UserPost"),
+	}
+	req := svc.ScanRequest(params)
+	res, err := req.Send(req.Context())
+	if err != nil {
+		fmt.Println(err)
+	}
+	posts := make([]UserPost, 0)
+	for _, item := range res.Items {
+		posts = append(posts, UserPost{
+			ID:    *item["ID"].N,
+			URL:   *item["URL"].S,
+			State: *item["State"].S,
+		})
+	}
+
+	response, err := json.Marshal(posts)
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	fmt.Println(string(response))
+
 }
 
 func main() {
-	lambda.Start(insert)
+	config()
 }
