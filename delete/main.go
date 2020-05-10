@@ -77,15 +77,14 @@ func checkNeedUpdate(lenPost int) bool {
 	return false
 }
 
-// Get sorted slice of UserPost by created_at, Set the older state
-func DeactivatePost(ups UserPosts) {
+func UpdatePostState(ups UserPosts, bs string, as string) error {
 	cfg, err := external.LoadDefaultAWSConfig()
 	if err != nil {
 		log.Fatal(err)
 	}
 	svc := dynamodb.New(cfg)
-	update := expression.Set(expression.Name("state"), expression.Value("ruuning"))
-	condition := expression.Equal(expression.Name("state"), expression.Value("active"))
+	update := expression.Set(expression.Name("state"), expression.Value(as))
+	condition := expression.Equal(expression.Name("state"), expression.Value(bs))
 
 	expr, err := expression.NewBuilder().WithCondition(condition).WithUpdate(update).Build()
 	if err != nil {
@@ -94,7 +93,6 @@ func DeactivatePost(ups UserPosts) {
 
 	// Step1. Get candidate posts and turn that state into RUUNING
 	for i := 0; i < numOfDeletion; i++ {
-		fmt.Println(ups[i].ID)
 		input := &dynamodb.UpdateItemInput{
 			ExpressionAttributeNames:  expr.Names(),
 			ExpressionAttributeValues: expr.Values(),
@@ -112,7 +110,7 @@ func DeactivatePost(ups UserPosts) {
 		}
 
 		req := svc.UpdateItemRequest(input)
-		result, err := req.Send(context.Background())
+		_, err := req.Send(context.Background())
 		if err != nil {
 			if aerr, ok := err.(awserr.Error); ok {
 				switch aerr.Code() {
@@ -132,12 +130,14 @@ func DeactivatePost(ups UserPosts) {
 			} else {
 				fmt.Println(err.Error())
 			}
-			return
+			return err
 		}
-		fmt.Println(result)
+
 	}
+	return nil
 
 }
+
 func sortUserPost(ups UserPosts) {
 	sort.Sort(ups)
 	fmt.Println(ups)
@@ -145,9 +145,12 @@ func sortUserPost(ups UserPosts) {
 
 func main() {
 	lenPosts, posts := config()
-	fmt.Println(lenPosts)
 	if checkNeedUpdate(lenPosts) {
 		sortUserPost(posts)
-		DeactivatePost(posts)
+		err := UpdatePostState(posts, "active", "running")
+		if err != nil {
+			fmt.Println(err)
+		}
+		UpdatePostState(posts, "running", "deactive")
 	}
 }
