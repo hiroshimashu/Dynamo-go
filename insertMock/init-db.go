@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"time"
+	"strconv"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/external"
@@ -13,11 +13,27 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/dynamodbattribute"
 )
 
+type Timestamp int64
 type UserPost struct {
 	ID        int
-	URL       string
-	CreatedAt time.Time
-	State     string
+	URL       string    `json:"url,omitempyt"`
+	CreatedAt Timestamp `json:"created_at,int,omitempyt"`
+	State     string    `json:"state,omitempty"`
+}
+
+func (t Timestamp) MarshalJSON() ([]byte, error) {
+	ts := t
+	stamp := fmt.Sprint(ts)
+	return []byte(stamp), nil
+}
+
+func (t *Timestamp) UnmarshalJSON(b []byte) error {
+	ts, err := strconv.Atoi(string(b))
+	if err != nil {
+		return err
+	}
+	*t = Timestamp(ts)
+	return nil
 }
 
 func main() {
@@ -31,28 +47,25 @@ func main() {
 		log.Fatal(err)
 	}
 
-	for _, p := range up {
-		fmt.Println("Inserting:", p)
-		err = insertPost(cfg, p)
+	for _, v := range up {
+		fmt.Println("Inserting:", v)
+		err = insertPost(cfg, v)
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
-
 }
 
 func readPosts(fileName string) ([]UserPost, error) {
 	posts := make([]UserPost, 0)
 
 	data, err := ioutil.ReadFile(fileName)
+
 	if err != nil {
 		return posts, err
 	}
 
 	err = json.Unmarshal(data, &posts)
-	for _, v := range posts {
-		v.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", string(v.CreatedAt))
-	}
 	if err != nil {
 		return posts, err
 	}
@@ -61,8 +74,8 @@ func readPosts(fileName string) ([]UserPost, error) {
 }
 
 func insertPost(cfg aws.Config, up UserPost) error {
+
 	item, err := dynamodbattribute.MarshalMap(up)
-	fmt.Println(item)
 	if err != nil {
 		return err
 	}
