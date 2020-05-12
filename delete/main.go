@@ -6,6 +6,8 @@ import (
 	"log"
 	"sort"
 
+	"github.com/aws/aws-lambda-go/events"
+	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/awserr"
 	"github.com/aws/aws-sdk-go-v2/aws/external"
@@ -92,6 +94,7 @@ func UpdatePostState(ups UserPosts, bs string, as string) error {
 	}
 
 	// Step1. Get candidate posts and turn that state into RUUNING
+	// TO DO: ここは並列処理にした方が良さげ？
 	for i := 0; i < numOfDeletion; i++ {
 		input := &dynamodb.UpdateItemInput{
 			ExpressionAttributeNames:  expr.Names(),
@@ -143,14 +146,35 @@ func sortUserPost(ups UserPosts) {
 	fmt.Println(ups)
 }
 
-func main() {
+func handleRequest(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	lenPosts, posts := config()
 	if checkNeedUpdate(lenPosts) {
 		sortUserPost(posts)
 		err := UpdatePostState(posts, "active", "running")
 		if err != nil {
-			fmt.Println(err)
+			return events.APIGatewayProxyResponse{
+				StatusCode: 400,
+				Body:       "Failed to change state from active to running",
+			}, err
 		}
-		UpdatePostState(posts, "running", "deactive")
+		err = UpdatePostState(posts, "running", "deactive")
+		if err != nil {
+			return events.APIGatewayProxyResponse{
+				StatusCode: 400,
+				Body:       "Failed to change state from running to deactive",
+			}, err
+		}
+
 	}
+	return events.APIGatewayProxyResponse{
+		StatusCode: 200,
+		Headers: map[string]string{
+			"Content-Type": "application/json",
+		},
+		Body: "Success",
+	}, nil
+}
+
+func main() {
+	lambda.Start(handleRequest)
 }
