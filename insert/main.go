@@ -5,18 +5,22 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/dynamodbattribute"
 	"github.com/google/uuid"
 )
 
 type Image struct {
-	ID  string `json:"id"`
-	URL string `json:"url"`
+	ID        string `dynamodbav:"id"`
+	URL       string `dynamodbav:"url"`
+	CreatedAt int64  `dynamodbav:"created_at"`
+	State     string `dynamodbav:"state"`
 }
 
 // HandleRequest :handle sqs's queue
@@ -45,20 +49,23 @@ func HandleRequest(ctx context.Context, evt events.SQSEvent) (string, error) {
 	fmt.Printf("url variable: %s", url)
 
 	image := Image{
-		ID:  uuid,
-		URL: url,
+		ID:        uuid,
+		URL:       url,
+		CreatedAt: time.Now().Unix(),
+		State:     "active",
 	}
-
 	// Post image to dynamoDB
 	svc := dynamodb.New(cfg)
+
+	av, err := dynamodbattribute.MarshalMap(image)
+	if err != nil {
+		fmt.Println(err.Error())
+		return "failed", err
+	}
+
 	req := svc.PutItemRequest(&dynamodb.PutItemInput{
 		TableName: aws.String(os.Getenv("TABLE_NAME")),
-		Item: map[string]dynamodb.AttributeValue{
-			"ID": dynamodb.AttributeValue{S: aws.String(image.ID)},
-			"URL": dynamodb.AttributeValue{
-				S: aws.String(image.URL),
-			},
-		},
+		Item:      av,
 	})
 
 	_, err = req.Send(req.Context())
