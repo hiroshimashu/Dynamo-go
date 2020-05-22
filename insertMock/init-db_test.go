@@ -12,7 +12,7 @@ func TestJsonParse(t *testing.T) {
 	t.Run("correctly parsing json", func(t *testing.T) {
 		want := []UserPost{
 			UserPost{
-				1,
+				"1",
 				"http://dummyimage.com/224x118.jpg/5fa2dd/ffffff",
 				1257894000,
 				"activez",

@@ -8,13 +8,13 @@
         "id": 2,
         "url": "http://dummyimage.com/224x118.jpg/5fa2dd/ffffff",
         "created_at": 1257894001,
-        "state": "active"
+        "state": "deactive"
     },
     {
         "id": 3,
         "url": "http://dummyimage.com/132x177.bmp/dddddd/000000",
         "created_at": 1257894002,
-        "state": "active"
+        "state": "deactive"
     },
     {
         "id": 4,

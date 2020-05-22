@@ -15,9 +15,9 @@ import (
 
 type Timestamp int64
 type UserPost struct {
-	ID        int
+	ID        string    `json:"id,omitempty"`
 	URL       string    `json:"url,omitempyt"`
-	CreatedAt Timestamp `json:"created_at,int,omitempyt"`
+	CreatedAt Timestamp `json:"created_at,int,omitempty"`
 	State     string    `json:"state,omitempty"`
 }
 
@@ -42,7 +42,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	up, err := readPosts("./MOCK_DATA.json")
+	up, err := readPosts("./generated.json")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -74,7 +74,6 @@ func readPosts(fileName string) ([]UserPost, error) {
 }
 
 func insertPost(cfg aws.Config, up UserPost) error {
-
 	item, err := dynamodbattribute.MarshalMap(up)
 	if err != nil {
 		return err
