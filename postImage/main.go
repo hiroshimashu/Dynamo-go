@@ -63,7 +63,7 @@ func uploadS3(imageBody []byte) (*s3manager.UploadOutput, error) {
 	uploader := s3manager.NewUploaderWithClient(svc)
 	res, err := uploader.Upload(&s3manager.UploadInput{
 		Bucket:      aws.String("miraikan"),
-		Key:         aws.String(os.Getenv("URL") + "last/" + randID + ".png"),
+		Key:         aws.String(os.Getenv("URL") + "userPost/" + randID + ".png"),
 		Body:        bytes.NewReader(imageBody),
 		ContentType: aws.String("image/png"),
 		ACL:         "public-read",
