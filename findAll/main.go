@@ -10,11 +10,14 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/expression"
 )
 
-type Movie struct {
-	ID  string `json:"id"`
-	Url string `json:"url"`
+type GeneratedImage struct {
+	ID        string `json:"id,omitempty"`
+	URL       string `json:"url,omitempyt"`
+	CreatedAt string `json:"created_at,int,omitempty"`
+	State     string `json:"state,omitempty"`
 }
 
 func findAll() (events.APIGatewayProxyResponse, error) {
@@ -27,8 +30,16 @@ func findAll() (events.APIGatewayProxyResponse, error) {
 	}
 
 	svc := dynamodb.New(cfg)
+
+	filt := expression.Name("state").Equal(expression.Value("active"))
+	proj := expression.NamesList(expression.Name("created_at"), expression.Name("state"), expression.Name("id"), expression.Name("url"))
+	expr, err := expression.NewBuilder().WithFilter(filt).WithProjection(proj).Build()
 	req := svc.ScanRequest(&dynamodb.ScanInput{
-		TableName: aws.String(os.Getenv("TABLE_NAME")),
+		TableName:                 aws.String(os.Getenv("TABLE_NAME")),
+		ExpressionAttributeNames:  expr.Names(),
+		ExpressionAttributeValues: expr.Values(),
+		FilterExpression:          expr.Filter(),
+		ProjectionExpression:      expr.Projection(),
 	})
 	res, err := req.Send(req.Context())
 	if err != nil {
@@ -38,15 +49,17 @@ func findAll() (events.APIGatewayProxyResponse, error) {
 		}, nil
 	}
 
-	movies := make([]Movie, 0)
+	generatedImages := make([]GeneratedImage, 0)
 	for _, item := range res.Items {
-		movies = append(movies, Movie{
-			ID:  *item["ID"].S,
-			Url: *item["Url"].S,
+		generatedImages = append(generatedImages, GeneratedImage{
+			ID:        *item["id"].S,
+			URL:       *item["url"].S,
+			CreatedAt: *item["created_at"].N,
+			State:     *item["state"].S,
 		})
 	}
 
-	response, err := json.Marshal(movies)
+	response, err := json.Marshal(generatedImages)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusInternalServerError,

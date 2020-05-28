@@ -15,7 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/expression"
 )
 
-var activeLimit int = 10
+var activeLimit int = 40
 var numOfDeletion int = 10
 
 type UserPost struct {
@@ -61,7 +61,7 @@ func config() (int, []UserPost) {
 	posts := make([]UserPost, 0)
 	for _, item := range res.Items {
 		posts = append(posts, UserPost{
-			ID:        *item["id"].N,
+			ID:        *item["id"].S,
 			CreatedAt: *item["created_at"].N,
 			URL:       *item["url"].S,
 			State:     *item["state"].S,
@@ -103,7 +103,7 @@ func UpdatePostState(ups UserPosts, bs string, as string) error {
 			ConditionExpression:       expr.Condition(),
 			Key: map[string]dynamodb.AttributeValue{
 				"id": {
-					N: aws.String(ups[i].ID),
+					S: aws.String(ups[i].ID),
 				},
 				"created_at": {
 					N: aws.String(ups[i].CreatedAt),

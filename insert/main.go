@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"os"
 	"time"
 
@@ -74,6 +76,12 @@ func HandleRequest(ctx context.Context, evt events.SQSEvent) (string, error) {
 		return "Insertion Error", err
 	}
 
+	// Request delete
+	err = sendConfigRequest()
+	if err != nil {
+		return "Deletion Error", err
+	}
+
 	return "success", nil
 }
 
@@ -85,6 +93,39 @@ func createuuid() (string, error) {
 	}
 	uu := u.String()
 	return uu, nil
+}
+
+func sendConfigRequest() error {
+	client := &http.Client{}
+
+	// Create request
+	req, err := http.NewRequest("DELETE", "https://19cahylda1.execute-api.ap-northeast-1.amazonaws.com/staging/movies", nil)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	// Fetch Request
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+	defer resp.Body.Close()
+
+	// Read Response Body
+	respBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	// Display Results
+	fmt.Println("response Status : ", resp.Status)
+	fmt.Println("response Headers : ", resp.Header)
+	fmt.Println("response Body : ", string(respBody))
+
+	return nil
 }
 
 func main() {
